@@ -1,7 +1,7 @@
 import requests
 
-bot_token = "8436255248:AAFeNa_MTkzpealBEeyfKwXXuNuwBiEgvOg"
-chat_id = "1282848803"  # The number from step 3
+bot_token = "TOKEN"
+chat_id = "CHAT_ID"  # The number from step 3
 
 # Read your summary
 with open("output/summary.txt", "r", encoding="utf-8") as f:
