@@ -1,0 +1,15 @@
+
+fastapi
+uvicorn[standard]
+python-multipart
+python-dotenv 
+
+
+torch 
+numpy
+
+openai-whisper
+
+transformers
+requests
+bert-extractive-summarizer

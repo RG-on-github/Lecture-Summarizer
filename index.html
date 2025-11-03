@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio-to-Text Delivery System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom font and scrollbar for a professional look */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f7f9fc; }
+        .log-area::-webkit-scrollbar { width: 4px; }
+        .log-area::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+        .log-area { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+    </style>
+    <script>
+        // --- Client-Side API Integration ---
+
+        // NOTE: This MUST match the address where your FastAPI server is running.
+        const API_BASE_URL = "http://127.0.0.1:8000"; 
+        
+        /**
+         * Logs server progress and status to the UI.
+         */
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const color = {
+                'info': 'text-gray-600',
+                'success': 'text-green-600 font-semibold',
+                'error': 'text-red-600 font-semibold',
+                'warn': 'text-yellow-600',
+            }[type];
+
+            const logEntry = document.createElement('p');
+            logEntry.className = `text-sm mt-1 ${color}`;
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight; // Auto-scroll to bottom
+        }
+
+        /**
+         * Initiates the audio processing pipeline by sending the file and config to the FastAPI server.
+         */
+        async function startProcessing() {
+            const processButton = document.getElementById('processButton');
+            const fileInput = document.getElementById('audioFile');
+            const modelSize = document.getElementById('modelSize').value;
+            const maxMinutes = document.getElementById('maxMinutes').value;
+
+            if (fileInput.files.length === 0) {
+                return log("Please select an audio file first.", 'error');
+            }
+
+            // Reset UI state
+            document.getElementById('logContainer').innerHTML = '';
+            document.getElementById('transcriptOutput').textContent = 'Processing...';
+            document.getElementById('summaryOutput').textContent = 'Processing...';
+            processButton.disabled = true;
+            processButton.textContent = 'Processing... (Upload & Transcribe)';
+            
+            // Switch to logs tab to show progress immediately
+            switchTab('logs');
+
+            log("Starting AI Lecture Processing Pipeline...", 'info');
+            log(`Config: Model=${modelSize}, Max Minutes=${maxMinutes}`, 'info');
+            log("Uploading file to server...", 'warn');
+
+            const formData = new FormData();
+            formData.append('audio_file', fileInput.files[0]);
+            formData.append('model_size', modelSize);
+            formData.append('max_minutes', maxMinutes);
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/process`, {
+                    method: 'POST',
+                    body: formData,
+                    // Browser automatically sets 'Content-Type: multipart/form-data'
+                });
+
+                log("Server received file. Transcribing audio...", 'warn');
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    const errorMessage = data.detail || `HTTP Error: ${response.status} - ${response.statusText}`;
+                    throw new Error(errorMessage);
+                }
+
+                log("Transcription complete. Running summarization...", 'warn');
+                
+                // --- Update Results ---
+                document.getElementById('transcriptOutput').textContent = data.transcript;
+                document.getElementById('summaryOutput').textContent = data.summary;
+                
+                log("Summarization and Telegram notification complete.", 'success');
+                log("✨ Pipeline complete! Results are available in the tabs.", 'success');
+                
+                processButton.textContent = 'Process Complete';
+                switchTab('summary'); // Automatically show the final summary
+
+            } catch (error) {
+                log(`Process failed: ${error.message}`, 'error');
+                processButton.textContent = 'Start Processing (Error)';
+            } finally {
+                processButton.disabled = false;
+                if (processButton.textContent === 'Processing... (Upload & Transcribe)') {
+                    processButton.textContent = 'Start Transcribe & Summarize Pipeline';
+                }
+            }
+        }
+
+        // --- Tab Control ---
+        function switchTab(tabName) {
+            const tabs = ['logs', 'transcript', 'summary'];
+            tabs.forEach(tab => {
+                document.getElementById(`${tab}Tab`).classList.toggle('border-blue-600', tab === tabName);
+                document.getElementById(`${tab}Tab`).classList.toggle('text-blue-600', tab === tabName);
+                document.getElementById(`${tab}Tab`).classList.toggle('text-gray-500', tab !== tabName);
+                document.getElementById(`${tab}Content`).classList.toggle('hidden', tab !== tabName);
+            });
+        }
+
+        // Initialize tabs
+        document.addEventListener('DOMContentLoaded', () => {
+            switchTab('logs');
+        });
+
+    </script>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+    <div class="max-w-4xl mx-auto">
+        <header class="mb-8 text-center">
+            <h1 class="text-4xl font-bold text-gray-800">Audio-to-Text Summary Delivery System</h1>
+            <p class="text-gray-500 mt-2">Whisper Transcription & Hybrid Summarization</p>
+        </header>
+
+        <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border border-gray-100">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4 flex items-center">
+                <svg class="w-6 h-6 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-4-4V7a4 4 0 014-4h10a4 4 0 014 4v5a4 4 0 01-4 4H7z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                1. Configure & Upload
+            </h2>
+
+            <div class="grid md:grid-cols-3 gap-6 mb-6">
+                <div class="md:col-span-3">
+                    <label for="audioFile" class="block text-sm font-medium text-gray-700 mb-1">Upload Audio File (MP3/WAV)</label>
+                    <input type="file" id="audioFile" accept="audio/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer rounded-lg border border-gray-300 p-2">
+                </div>
+
+                <div>
+                    <label for="modelSize" class="block text-sm font-medium text-gray-700 mb-1">Whisper Model Size</label>
+                    <select id="modelSize" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <option value="small">small (Default)</option>
+                        <option value="tiny">tiny (Fastest)</option>
+                        <option value="base">base</option>
+                        <option value="medium">medium</option>
+                        <option value="large">large (Highest Accuracy)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="maxMinutes" class="block text-sm font-medium text-gray-700 mb-1">Max Minutes to Process</label>
+                    <input type="number" id="maxMinutes" value="5" min="1" class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+            </div>
+
+            <button id="processButton" onclick="startProcessing()" class="w-full flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-xl shadow-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                Start Transcribe & Summarize Pipeline
+            </button>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4 flex items-center">
+                <svg class="w-6 h-6 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                2. Results & Status
+            </h2>
+
+            <div class="border-b border-gray-200 mb-4">
+                <nav class="-mb-px flex space-x-8">
+                    <button id="logsTab" onclick="switchTab('logs')" class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm transition duration-150 ease-in-out">
+                        Process Logs
+                    </button>
+                    <button id="transcriptTab" onclick="switchTab('transcript')" class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                        Full Transcript
+                    </button>
+                    <button id="summaryTab" onclick="switchTab('summary')" class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                        Final Summary
+                    </button>
+                </nav>
+            </div>
+
+            <div id="logsContent" class="p-4 bg-gray-50 rounded-lg border">
+                <pre id="logContainer" class="log-area h-48 overflow-y-auto text-sm text-gray-800"></pre>
+            </div>
+
+            <div id="transcriptContent" class="hidden p-4 bg-gray-50 rounded-lg border">
+                <p id="transcriptOutput" class="whitespace-pre-wrap text-gray-700 h-48 overflow-y-auto">Waiting for results...</p>
+            </div>
+
+            <div id="summaryContent" class="hidden p-4 bg-gray-50 rounded-lg border">
+                <p id="summaryOutput" class="whitespace-pre-wrap text-gray-700 font-medium h-48 overflow-y-auto">Waiting for results...</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

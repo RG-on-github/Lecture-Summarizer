@@ -1,0 +1,13 @@
+HOW TO MAKE THIS WORK
+
+1) INSTALL THE REQUIREMENTS IN "requirements.txt":
+--> pip install -r requirements.txt
+
+2) RUN THE BACKEND: 
+uvicorn backend_app:app --reload
+
+3) ENV file:
+TELEGRAM_BOT_TOKEN
+TELEGRAM_CHAT_ID
+
+4) run the html file to kickstart the web app
